@@ -275,6 +275,7 @@
     switch (o.type) {
       case 'player': return { x: o.x - PLAYER_R, y: o.y - PLAYER_R, w: PLAYER_R * 2, h: PLAYER_R * 2 };
       case 'puck': return { x: o.x - 16, y: o.y - 16, w: 32, h: 32 };
+      case 'flag': return { x: o.x - 8, y: o.y - 62, w: 52, h: 70 };
       case 'text': { const m = textMetrics(o); return { x: o.x - m.w / 2, y: o.y - m.h / 2, w: m.w, h: m.h }; }
       case 'line': {
         const pts = flatten(o);
@@ -309,6 +310,7 @@
     switch (o.type) {
       case 'player': return Math.hypot(x - o.x, y - o.y) <= PLAYER_R + tol;
       case 'puck': return Math.hypot(x - o.x, y - o.y) <= PUCK_R + 8 + tol;
+      case 'flag': return x >= o.x - 16 - tol && x <= o.x + 40 + tol && y >= o.y - 60 - tol && y <= o.y + 12 + tol;
       case 'text': { const b = bounds(o); return x >= b.x - tol && x <= b.x + b.w + tol && y >= b.y - tol && y <= b.y + b.h + tol; }
       case 'cone': case 'stick': case 'net': {
         const l = toLocal(o, x, y), b = LOCAL_BOX[o.type];
@@ -366,6 +368,20 @@
 
   const ACCENT = '#2f7bff';
 
+  // Checkpoint flag: a pole planted at (x, y) with a numbered pennant. Shown while animating only (never in PDF / video).
+  function drawFlag(ctx, o, n) {
+    ctx.save();
+    ctx.translate(o.x, o.y);
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.ellipse(0, 0, 11, 5, 0, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -58); ctx.lineWidth = 4; ctx.strokeStyle = '#333'; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, -58); ctx.lineTo(38, -47); ctx.lineTo(0, -36); ctx.closePath();
+    ctx.fillStyle = '#e8590c'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.font = `700 15px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(String(n), 10, -47);
+    ctx.restore();
+  }
+
   // Animation overlays: numbered step badges on motions, plus links from the selected motion to its pieces.
   function drawAnimOverlay(ctx, drill, selectedId, zoom) {
     const px = 1 / zoom, byId = new Map(drill.objects.map((o) => [o.id, o]));
@@ -374,6 +390,8 @@
       for (const id of o.anim.actors) { const k = (o.anim.step || 1) + '|' + id; used.set(k, (used.get(k) || 0) + 1); }
     }
     ctx.save();
+    let fn = 0;
+    for (const o of drill.objects) if (o.type === 'flag') drawFlag(ctx, o, ++fn);
     for (const o of drill.objects) {
       if (o.type !== 'line' || o.kind === 'free' || !o.anim || !o.anim.actors || !o.anim.actors.length) continue;
       const p = o.pts[0];
@@ -385,6 +403,16 @@
       ctx.fillText(label, p.x, p.y + 1);
     }
     const sel = byId.get(selectedId);
+    if (sel && sel.type === 'line' && sel.anim && sel.anim.trigger) {            // what the selected motion waits for
+      const t = sel.anim.trigger, start = sel.pts[0];
+      const from = t.kind === 'flag' ? byId.get(t.flag) : byId.get(t.motion);
+      const fp = from && (from.type === 'line' ? (t.when === 'end' ? from.pts[from.pts.length - 1] : from.pts[0]) : { x: from.x, y: from.y - 30 });
+      ctx.save(); ctx.strokeStyle = '#e8590c'; ctx.lineWidth = 3; ctx.setLineDash([3, 7]); ctx.lineCap = 'round';
+      if (fp) { ctx.beginPath(); ctx.moveTo(fp.x, fp.y); ctx.lineTo(start.x, start.y); ctx.stroke(); }
+      const w = t.kind === 'flag' ? byId.get(t.who) : null;
+      if (w) { ctx.setLineDash([]); ctx.beginPath(); ctx.arc(w.x, w.y, w.type === 'puck' ? 18 : PLAYER_R + 7, 0, Math.PI * 2); ctx.stroke(); }
+      ctx.restore();
+    }
     if (sel && sel.type === 'line' && sel.anim) {
       const start = sel.pts[0];
       const ids = (sel.anim.actors || []).concat(sel.anim.carry ? [sel.anim.carry] : []);
@@ -411,7 +439,7 @@
     if (opts.dim) ctx.globalAlpha = 0.3;
     for (const o of drill.objects) if (o.type === 'line') drawObject(ctx, o);
     ctx.restore();
-    const pieces = drill.objects.filter((o) => o.type !== 'line' && o.id !== opts.hideId);
+    const pieces = drill.objects.filter((o) => o.type !== 'line' && o.type !== 'flag' && o.id !== opts.hideId);
     for (const o of pieces) if (o.type === 'net') drawObject(ctx, at(o));
     for (const o of pieces) if (o.type !== 'puck' && o.type !== 'net') drawObject(ctx, at(o));
     for (const o of pieces) if (o.type === 'puck') drawObject(ctx, at(o));

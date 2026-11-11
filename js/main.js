@@ -118,7 +118,7 @@
   }
 
   // ---------- inspector ----------
-  const NAMES = { player: 'Player', puck: 'Puck', cone: 'Cone', stick: 'Stick', net: 'Net', text: 'Text', line: 'Line' };
+  const NAMES = { player: 'Player', puck: 'Puck', cone: 'Cone', stick: 'Stick', net: 'Net', text: 'Text', line: 'Line', flag: 'Checkpoint' };
   function syncSelection(o) {
     $('#selPanel').hidden = !o;
     syncAnimPanel(o);
@@ -172,6 +172,23 @@
         tag.appendChild(x); el.appendChild(tag);
       });
     };
+    // trigger
+    const tr = a.trigger, trChips = $('#trigChips');
+    trChips.innerHTML = '';
+    $('#trigDelayL').hidden = !tr; if (tr) $('#trigDelay').value = tr.delay || 0;
+    if (tr) {
+      let txt = '';
+      if (tr.kind === 'flag') {
+        const n = S.current.objects.filter((x) => x.type === 'flag').findIndex((x) => x.id === tr.flag) + 1, w = S.current.objects.find((x) => x.id === tr.who);
+        txt = (w ? describe(w) : '?') + ' reaches checkpoint ' + (n || '?');
+      } else {
+        const m = S.current.objects.find((x) => x.id === tr.motion);
+        txt = m ? 'the ' + { skate: 'skating', back: 'backward', pass: 'pass', dump: 'dump', shoot: 'shot' }[m.kind] + ' line (step ' + ((m.anim && m.anim.step) || 1) + ') ' + (tr.when === 'end' ? 'ends' : 'starts') : 'a removed motion';
+      }
+      const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = txt;
+      const x = document.createElement('button'); x.textContent = '×'; x.title = 'Remove'; x.onclick = () => editAnim(o, (an) => { delete an.trigger; });
+      tag.appendChild(x); trChips.appendChild(tag);
+    }
     fill($('#actorChips'), a.actors || [], (id) => editAnim(o, (an) => { an.actors = an.actors.filter((x) => x !== id); }));
     fill($('#carryChips'), a.carry ? [a.carry] : [], () => editAnim(o, (an) => { an.carry = null; }));
   }
@@ -181,6 +198,35 @@
     line.anim = line.anim || { step: 1, actors: [], carry: null };
     fn(line.anim);
     S.emit('objects');
+  }
+
+  // trigger: click the spot for a checkpoint, then the piece that has to reach it; or click another motion in this step
+  function pickTrigger(kind) {
+    const line = E.getSelected();
+    if (!isMotion(line)) return;
+    const step = (line.anim && line.anim.step) || 1;
+    if (kind === 'flag') {
+      E.startPick((pt) => {
+        S.checkpoint();
+        const flag = { id: HD.newId(), type: 'flag', x: pt.x, y: pt.y };
+        S.current.objects.push(flag);
+        S.emit('objects');
+        setTimeout(() => E.startPick((t) => {
+          if (t.type === 'flag' || t.type === 'line') { toast('Pick the player or puck that has to reach the checkpoint'); return false; }
+          editAnim(line, (an) => { an.trigger = { kind: 'flag', flag: flag.id, who: t.id, delay: 0 }; });
+          return true;
+        }, 'piece', 'Now click the player or puck that has to reach the checkpoint'), 0);
+        return true;
+      }, 'point', 'Click the spot on the ice for the checkpoint');
+    } else {
+      E.startPick((m) => {
+        if (m.id === line.id) { toast('Pick a different motion'); return false; }
+        if (((m.anim && m.anim.step) || 1) !== step) { toast('Triggers only work between motions in the same step (step ' + step + ')'); return false; }
+        if (!(m.anim && m.anim.actors && m.anim.actors.length)) { toast('That motion has nothing attached yet'); return false; }
+        editAnim(line, (an) => { an.trigger = { kind: 'motion', motion: m.id, when: isShotLine(m) ? 'start' : 'end', delay: 0 }; });
+        return true;
+      }, 'motion', 'Click the motion that sets this one off (a pass / shot sets it off when it is released; a skate when it finishes)');
+    }
   }
 
   function pickFor(role) {
@@ -345,11 +391,14 @@
     $('#motionSpeed').onchange = () => S.emit('objects');
     $('#btnPickActor').onclick = () => pickFor('actor');
     $('#btnPickCarry').onclick = () => pickFor('carry');
+    $('#btnTrigFlag').onclick = () => pickTrigger('flag');
+    $('#btnTrigMotion').onclick = () => pickTrigger('motion');
+    $('#trigDelay').onchange = (e) => { const l = E.getSelected(); if (isMotion(l) && l.anim && l.anim.trigger) editAnim(l, (a) => { a.trigger.delay = Math.max(0, Math.min(10, +e.target.value || 0)); }); };
     $('#stepUp').onclick = () => { const l = E.getSelected(); editAnim(l, (a) => { a.step = (a.step || 1) + 1; }); };
     $('#subUp').onclick = () => { const l = E.getSelected(); editAnim(l, (a) => { a.sub = Math.min(26, (a.sub || 1) + 1); }); };
     $('#subDown').onclick = () => { const l = E.getSelected(); editAnim(l, (a) => { a.sub = Math.max(1, (a.sub || 1) - 1); }); };
     $('#stepDown').onclick = () => { const l = E.getSelected(); editAnim(l, (a) => { a.step = Math.max(1, (a.step || 1) - 1); }); };
-    E.onPick = (on) => { $('#pickBanner').hidden = !on; };
+    E.onPick = (on, text) => { $('#pickBanner').hidden = !on; if (on) $('#pickText').textContent = text || 'Click a piece on the ice to attach it'; };
 
     $('#pbPlay').onclick = () => {
       if (An.playing) { An.pause(); return; }

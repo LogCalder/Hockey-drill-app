@@ -89,7 +89,7 @@
 
   function pick(p) {
     const objs = S.current.objects, tol = 4 / E.scale;
-    for (let i = objs.length - 1; i >= 0; i--) if (objs[i].type !== 'line' && R.hit(objs[i], p.x, p.y, tol)) return objs[i];
+    for (let i = objs.length - 1; i >= 0; i--) if (objs[i].type !== 'line' && (objs[i].type !== 'flag' || E.animMode) && R.hit(objs[i], p.x, p.y, tol)) return objs[i];
     for (let i = objs.length - 1; i >= 0; i--) if (objs[i].type === 'line' && R.hit(objs[i], p.x, p.y, tol)) return objs[i];
     return null;
   }
@@ -136,8 +136,9 @@
     canvas.setPointerCapture(e.pointerId);
     const p = world(e);
 
-    if (E.picking) {                       // attaching a piece to a motion
-      const t = pickPiece(p);
+    if (E.picking) {                       // attaching a piece / a spot / another motion
+      const mode = E.picking.mode;
+      const t = mode === 'point' ? { x: clamp(p.x, 0, HD.RINK.W), y: clamp(p.y, 0, worldH()) } : mode === 'motion' ? pickMotion(p) : pickPiece(p);
       if (t && E.picking.validate(t)) { E.picking = null; canvas.style.cursor = 'default'; E.onPick(false); }
       return;
     }
@@ -282,10 +283,16 @@
     return null;
   }
 
-  E.startPick = function (validate) {
-    E.picking = { validate };
+  function pickMotion(p) {
+    const objs = S.current.objects, tol = 6 / E.scale;
+    for (let i = objs.length - 1; i >= 0; i--) if (objs[i].type === 'line' && objs[i].kind !== 'free' && R.hit(objs[i], p.x, p.y, tol)) return objs[i];
+    return null;
+  }
+
+  E.startPick = function (validate, mode, text) {
+    E.picking = { validate, mode: mode || 'piece' };
     canvas.style.cursor = 'crosshair';
-    E.onPick(true);
+    E.onPick(true, text);
   };
   E.cancelPick = function () {
     if (!E.picking) return;

@@ -131,6 +131,13 @@
         <div id="carryChips" class="chiplist"></div>
         <button id="btnPickCarry" class="wide">+ Pick the puck</button>
       </div>
+      <div class="field" id="trigField">Starts when
+        <div id="trigChips" class="chiplist"></div>
+        <button id="btnTrigFlag" class="wide">+ A player reaches a checkpoint</button>
+        <button id="btnTrigMotion" class="wide">+ Another motion starts / ends</button>
+        <label class="inline" id="trigDelayL" hidden>then wait <input type="number" id="trigDelay" min="0" max="10" step="0.1" value="0"> s</label>
+        <p class="hint">Default: at the start of the step. Only motions in the same step can trigger each other.</p>
+      </div>
       <label class="field" id="speedField">Speed <b id="motionSpeedVal">1×</b>
         <input type="range" id="motionSpeed" min="0.5" max="2" step="0.1" value="1">
       </label>
@@ -229,6 +236,15 @@
           <li><b>Sub-steps belong to one player or puck.</b> If one player has several motions in the same step, give them <b>a</b>, <b>b</b>, <b>c</b>. That player does a, then b, then c, each starting the moment the last one ends. Other players are not held up. Example: a player skates forward (<b>1a</b>) then backward (<b>1b</b>) while everyone else keeps going.</li>
           <li>The badge shows <b>1a</b> / <b>1b</b> only where a player or puck has more than one motion in a step.</li>
         </ul>
+
+        <h4>Triggers: “start when…”</h4>
+        <p>Inside one step, a motion can wait for something else instead of starting at the beginning. Select the motion and use <b>Starts when</b>:</p>
+        <ul>
+          <li><b>A player reaches a checkpoint:</b> click a spot on the ice (an orange flag appears), then click the player or puck that has to get there. Example: “when X reaches the flag, O starts skating.”</li>
+          <li><b>Another motion starts / ends:</b> click the other line. A pass, dump or shot sets it off when it is <i>released</i>; a skate sets it off when it <i>finishes</i>.</li>
+          <li>Optionally wait a moment after the trigger (the “then wait” box). Remove a trigger with its ×.</li>
+        </ul>
+        <p class="note">Triggers only work between motions in the <b>same step</b>. Flags show only while you are in Animate mode (not in PDFs or videos). If a flag is never reached, the motion just starts with the step, and the Steps list says so.</p>
 
         <h4>How the puck behaves</h4>
         <ul>
@@ -342,7 +358,7 @@
 </div>
 
 <div id="recBanner" hidden></div>
-<div id="pickBanner" hidden>Click a piece on the ice to attach it · <u>Esc</u> to cancel</div>
+<div id="pickBanner" hidden><span id="pickText">Click a piece on the ice to attach it</span> · <u>Esc</u> to cancel</div>
 <div id="toast" role="status"></div>
 
 <dialog id="exportDlg">

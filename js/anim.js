@@ -4,6 +4,10 @@
  *   - sub: 1, 2, 3 = a, b, c. A step is global (everything in it starts together), but sub-steps are per player/puck:
  *     one player's (or puck's) motions in a step run a, then b, then c, each starting when the previous one ends,
  *     without affecting what any other player or puck is doing.
+ *   - trigger (optional, same step only): { kind:'flag', flag:<flagId>, who:<pieceId>, delay } = start when that piece reaches
+ *     the checkpoint flag; { kind:'motion', motion:<lineId>, when:'start'|'end', delay } = start when that motion starts / ends.
+ *     A triggered motion starts at the later of "its player is free" and "the trigger fired". build() solves this by
+ *     re-simulating the step with the trigger times as minimum start times until they settle.
  *   - skate / back lines: actors are players (or the coach); they follow the path.
  *     `carry` (optional) says "this puck moves with them" - otherwise possession is worked out automatically.
  *   - pass / shoot lines: actors are pucks; they travel along the line.
@@ -52,6 +56,7 @@
 
   A.build = function (drill) {
     const ids = new Set(drill.objects.map((o) => o.id));
+    const byId = new Map(drill.objects.map((o) => [o.id, o]));
     const rest = new Map();                                  // id -> position at the start of the current step
     for (const o of drill.objects) if (o.type !== 'line') rest.set(o.id, { x: o.x, y: o.y });
     const players = drill.objects.filter((o) => o.type === 'player').map((o) => o.id);
@@ -78,6 +83,11 @@
     for (const stepNo of [...groups.keys()].sort((a, b) => a - b)) {
       const lines = groups.get(stepNo);
       const startPos = new Map(rest);                        // snapshot: where everything is when this step begins
+      const ownerIn = new Map(owner), relIn = new Map(rel);
+      // sim(minStart): plays the whole step once. minStart = Map lineId -> earliest start (from triggers).
+      const sim = (minStart) => {
+      const owner = new Map(ownerIn), rel = new Map(relIn);
+      const minOf = (l) => minStart.get(l.id) || 0;
 
       // ---- skating motions ----
       const movers = lines.filter((l) => !isShot(l)).map((l) => {
@@ -91,7 +101,7 @@
       const segsOf = new Map();                              // player id -> its motions, in order
       const cur = new Map(startPos), free = new Map();       // where each player is / when it is free for its next motion
       for (const m of movers) {
-        m.start = Math.max(0, ...m.actors.map((id) => free.get(id) || 0));
+        m.start = Math.max(minOf(m.line), ...m.actors.map((id) => free.get(id) || 0));
         m.lead = { ...cur.get(m.actors[0]) };
         m.offs = m.actors.map((id) => ({ dx: cur.get(id).x - m.lead.x, dy: cur.get(id).y - m.lead.y }));
         const e = m.poly[m.poly.length - 1];
@@ -196,7 +206,7 @@
           }
           const { s, f, warn } = best;
           todo = todo.filter((x) => x !== s);
-          let fire = Math.max(f, tc);
+          let fire = Math.max(f, tc, minOf(s.line));
           if (s.line.kind === 'pass') {
             // time the pass so it lands just before whoever receives it gets there (a dump/shot just goes)
             const c0 = claim(s.poly[s.poly.length - 1], fire + s.dur, own, true);
@@ -235,11 +245,57 @@
         return evalSeg(seg, t);
       };
 
+      return { movers, shotItems, P, puckAt, stepEnd, owner, rel };
+      };   // end of sim
+
+      // ---- triggers: a motion may wait for a checkpoint or for another motion in this step ----
+      const validTrig = (l) => {
+        const t = l.anim.trigger;
+        if (!t) return false;
+        if (t.kind === 'flag') return byId.get(t.flag) && byId.get(t.flag).type === 'flag' && ids.has(t.who);
+        if (t.kind === 'motion') return t.motion !== l.id && lines.some((x) => x.id === t.motion);
+        return false;
+      };
+      const trigged = lines.filter(validTrig);
+      const trigInfo = new Map();
+      const trigTime = (l, res) => {
+        const t = l.anim.trigger, delay = Math.max(0, +t.delay || 0);
+        if (t.kind === 'motion') {
+          const o = res.movers.find((m) => m.line.id === t.motion), s = res.shotItems.find((x) => x.line.id === t.motion);
+          const a = o ? o.start : s ? s.t0 : null, d = o ? o.dur : s ? s.dur : 0;
+          return a === null ? null : (t.when === 'end' ? a + d : a) + delay;
+        }
+        const f = byId.get(t.flag), isPuck = pucks.includes(t.who);
+        let first = null, minD = Infinity, minT = 0;
+        for (let tt = 0; ; tt += 1 / 30) {
+          const q = Math.min(tt, res.stepEnd), p = isPuck ? res.puckAt(t.who, q) : res.P(t.who, q), d = dist(p, f);
+          if (d < minD) { minD = d; minT = q; }
+          if (d <= NEAR && first === null) first = q;
+          if ((first !== null && d > minD + 0.5) || q >= res.stepEnd) break;     // came within range, now moving away: use the closest point
+        }
+        const when = first !== null || minD <= NEAR_LOOSE ? minT : null;
+        return when === null ? null : when + delay;
+      };
+      let ms = new Map(), res = sim(ms);
+      for (let it = 0; it < 8 && trigged.length; it++) {
+        const next = new Map();
+        for (const l of trigged) {
+          const tt = trigTime(l, res);
+          trigInfo.set(l.id, { warn: tt === null });
+          if (tt !== null) next.set(l.id, tt);
+        }
+        if (trigged.every((l) => (next.get(l.id) || 0) === (ms.get(l.id) || 0))) break;
+        ms = next; res = sim(ms);
+      }
+      const { movers, shotItems, P, puckAt, stepEnd } = res;
+      for (const [k, v] of res.owner) owner.set(k, v);
+      for (const [k, v] of res.rel) rel.set(k, v);
+
       // positions at the end of the step become the start of the next
       for (const m of movers) for (const id of m.actors) rest.set(id, { ...P(id, stepEnd) });
       for (const p of pucks) rest.set(p, { ...puckAt(p, stepEnd) });
 
-      steps.push({ step: stepNo, label: String(stepNo), start: clock, dur: stepEnd, startPos, movers, shots: shotItems.slice().sort((a, b) => a.t0 - b.t0), P, puckAt, pucks });
+      steps.push({ step: stepNo, label: String(stepNo), start: clock, dur: stepEnd, startPos, trig: trigInfo, movers, shots: shotItems.slice().sort((a, b) => a.t0 - b.t0), P, puckAt, pucks });
       clock += stepEnd + GAP;
     }
     return { steps, total: Math.max(0.01, clock - GAP) };
@@ -269,19 +325,29 @@
       for (const o of drill.objects) if (types.includes(o.type) && dist(o, pt) <= bd) { best = o; bd = dist(o, pt); }
       return best;
     };
+    const flagNo = (id) => drill.objects.filter((o) => o.type === 'flag').findIndex((o) => o.id === id) + 1;
+    const WORD = { skate: 'skate', back: 'backwards skate', pass: 'pass', dump: 'dump', shoot: 'shot' };
+    const trigText = (st, l) => {
+      const t = l.anim.trigger, info = st.trig.get(l.id);
+      if (!t || !info) return '';
+      if (info.warn) return ' (waiting point never reached, so it starts with the step)';
+      if (t.kind === 'flag') return ' - starts when ' + nameOf(t.who) + ' reaches checkpoint ' + flagNo(t.flag);
+      const o = byId.get(t.motion), who = o && o.anim && o.anim.actors && o.anim.actors[0];
+      return ' - starts when ' + (who ? nameOf(who) + '\u2019s ' : 'the ') + (o ? WORD[o.kind] : 'motion') + (t.when === 'end' ? ' ends' : ' begins');
+    };
     const steps = tl.steps.map((st) => {
       const lines = [];
       const chain = (m, list, key) => (list.some((o) => o !== m && key(o).some((a) => key(m).includes(a))) ? String.fromCharCode(96 + Math.min(26, m.sub || 1)) + ': ' : '');
       for (const m of st.movers) {
         const who = m.actors.map(nameOf).join(' & '), one = m.actors.length === 1;
-        lines.push(chain(m, st.movers, (o) => o.actors) + who + ' ' + (m.line.kind === 'back' ? 'skate' + (one ? 's' : '') + ' backwards' : 'skate' + (one ? 's' : '')) + (m.carried ? ' with the puck' : ''));
+        lines.push(chain(m, st.movers, (o) => o.actors) + who + ' ' + (m.line.kind === 'back' ? 'skate' + (one ? 's' : '') + ' backwards' : 'skate' + (one ? 's' : '')) + (m.carried ? ' with the puck' : '') + trigText(st, m.line));
       }
       for (const s of st.shots) {
         const end = s.poly[s.poly.length - 1], pre = chain(s, st.shots, (o) => [o.puck]);
         const when = s.holder && !s.warn ? ' once ' + nameOf(s.holder) + ' has the puck at the start' : '';
-        if (s.line.kind === 'pass') lines.push(pre + 'Pass to ' + (s.receiver ? nameOf(s.receiver) : 'open ice') + when);
-        else if (s.line.kind === 'dump') lines.push(pre + 'Dump into open space' + when);
-        else lines.push(pre + (near(end, ['net'], 90) ? 'Shot on net' : 'Shot') + when);
+        if (s.line.kind === 'pass') lines.push(pre + 'Pass to ' + (s.receiver ? nameOf(s.receiver) : 'open ice') + when + trigText(st, s.line));
+        else if (s.line.kind === 'dump') lines.push(pre + 'Dump into open space' + when + trigText(st, s.line));
+        else lines.push(pre + (near(end, ['net'], 90) ? 'Shot on net' : 'Shot') + when + trigText(st, s.line));
       }
       return { step: st.step, label: st.label, start: st.start, dur: st.dur, lines };
     });
