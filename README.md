@@ -1,5 +1,7 @@
 # Hockey Drill Designer
 
+> The full how-to, including the animation guide, is built into the app: click **Help** in the top bar (or press `?`).
+
 Client-side tool for drawing ice hockey drills and exporting them as Letter-size PDFs.
 No build step, no server: open `index.html` in Chrome, or serve the folder with GitHub Pages
 (Settings → Pages → Deploy from branch → `main` / root).

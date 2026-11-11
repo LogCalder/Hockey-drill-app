@@ -512,6 +512,30 @@
   }
   const deliverPDF = (out) => deliverBlob(out.blob, out.name.replace(/\.pdf$/, '') + ' ' + today() + '.pdf');
 
+  // ---------- help ----------
+  function initHelp() {
+    const dlg = $('#helpDlg');
+    const show = (id) => {
+      $$('#helpNav button[data-help]').forEach((b) => b.classList.toggle('on', b.dataset.help === id));
+      $$('#helpBody > section').forEach((s) => { s.hidden = s.dataset.help !== id; });
+      $('#helpBody').scrollTop = 0;
+    };
+    $$('#helpNav button[data-help]').forEach((b) => { b.onclick = () => show(b.dataset.help); });
+    $$('#helpBody [data-goto]').forEach((a) => { a.onclick = () => show(a.dataset.goto); });
+    $('#helpClose').onclick = () => dlg.close();
+    dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
+    const open = () => { dlg.showModal(); };
+    $('#btnHelp').onclick = open;
+    // samples of each line type, drawn with the real renderer
+    $$('#helpBody .legend canvas').forEach((cv) => {
+      icon(cv, 96, 44, (c) => { c.scale(0.62, 0.62); HD.R.drawObject(c, mkLine(cv.dataset.kind, [{ x: 8, y: 35 }, { x: 148, y: 35 }])); });
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.key !== '?' || /input|textarea|select/i.test(e.target.tagName)) return;
+      e.preventDefault(); if (dlg.open) dlg.close(); else if (!document.querySelector('dialog[open]')) open();
+    });
+  }
+
   // ---------- init ----------
   function init() {
     S.init();
@@ -522,6 +546,7 @@
     syncFolderBtn(); F.restore();
 
     initAnim();
+    initHelp();
     E.onTool = syncTool;
     E.onSelect = syncSelection;
     S.onChange((kind) => {

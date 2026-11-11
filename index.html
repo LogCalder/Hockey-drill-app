@@ -21,6 +21,7 @@
     </div>
     <div class="spacer"></div>
     <div class="group">
+      <button id="btnHelp" title="How to use this app (?)"><b>?</b> Help</button>
       <button id="btnAnimate" class="toggle" title="Attach players and pucks to motions, then play the drill"><span class="tri">▶</span> Animate</button>
       <button id="btnFolder" class="folder"><i class="dot"></i><span>Drills folder</span></button>
       <button id="btnExpFolder" class="folder"><i class="dot"></i><span>Exports folder</span></button>
@@ -153,6 +154,167 @@
     </div>
   </footer>
 </div>
+
+<dialog id="helpDlg">
+  <div class="help">
+    <nav id="helpNav" aria-label="Help topics">
+      <h2>Help</h2>
+      <button data-help="start" class="on">Getting started</button>
+      <button data-help="draw">Pieces &amp; lines</button>
+      <button data-help="animation">Animation guide</button>
+      <button data-help="save">Saving &amp; folders</button>
+      <button data-help="export">Exporting</button>
+      <button data-help="keys">Shortcuts</button>
+      <button id="helpClose" class="ghost close">Close</button>
+    </nav>
+
+    <div id="helpBody">
+
+      <section data-help="start">
+        <h3>Getting started</h3>
+        <ol>
+          <li><b>Add pieces.</b> Drag a player, puck, cone, stick, net or coach from the left panel onto the ice. You can drag as many as you like (double-clicking an item also drops one).</li>
+          <li><b>Move things.</b> With the <b>Select</b> tool, click a piece to select it and drag to move it. Press <kbd>⌫</kbd> to delete.</li>
+          <li><b>Draw the action.</b> Pick <b>Skate</b>, <b>Backward</b>, <b>Pass</b>, <b>Dump</b> or <b>Shot</b> and drag on the ice. See <a data-goto="draw">Pieces &amp; lines</a>.</li>
+          <li><b>Name it.</b> In the right panel give the drill a name, choose <b>Half ice</b> or <b>Full ice</b>, and add notes.</li>
+          <li><b>Add more drills</b> with <b>+ Half ice</b> / <b>+ Full ice</b> in the bottom bar. Each drill is one diagram; click a thumbnail to switch.</li>
+          <li><b>Bring it to life</b> with <b>Animate</b> (top bar): see the <a data-goto="animation">Animation guide</a>.</li>
+        </ol>
+        <p class="note">Your work is saved in this browser automatically. To keep real files, connect folders: see <a data-goto="save">Saving &amp; folders</a>.</p>
+      </section>
+
+      <section data-help="draw" hidden>
+        <h3>Pieces &amp; lines</h3>
+        <h4>Lines</h4>
+        <div class="legend">
+          <div><canvas data-kind="skate"></canvas><span><b>Skate</b> <kbd>F</kbd><br>A player skating forward.</span></div>
+          <div><canvas data-kind="back"></canvas><span><b>Backward</b> <kbd>B</kbd><br>A player skating backward.</span></div>
+          <div><canvas data-kind="pass"></canvas><span><b>Pass</b> <kbd>P</kbd><br>A pass to a teammate.</span></div>
+          <div><canvas data-kind="dump"></canvas><span><b>Dump</b> <kbd>U</kbd><br>Looks like a pass, with a hollow arrowhead and a double bar: the puck goes to open space; nobody receives it.</span></div>
+          <div><canvas data-kind="shoot"></canvas><span><b>Shot</b> <kbd>S</kbd><br>A shot.</span></div>
+        </div>
+        <ul>
+          <li><b>Straight or Curve</b> (<kbd>C</kbd>): choose under the tools, then drag on the ice. After drawing a <b>curve</b>, drag the white <b>middle handle</b> to bend the path.</li>
+          <li><b>Adjust</b> any line: select it, then drag its handles. Drag the line itself to move all of it.</li>
+          <li><b>Text</b> (<kbd>T</kbd>): click the ice and type; double-click text to edit it. <b>Pen</b> (<kbd>D</kbd>): draw freehand.</li>
+          <li><b>Color:</b> pick a swatch in the right panel. It colors new items and whatever is selected.</li>
+          <li><b>Selected item:</b> duplicate, delete, bring to front / send to back, and rotate cones, sticks and nets (<kbd>R</kbd>).</li>
+        </ul>
+        <h4>Pieces</h4>
+        <p>Players (X, O, F, D, LW, C, RW, LD, RD, G), puck, cone, stick, net, and the <b>Coach</b> (a circled C). The coach works like a player in animations.</p>
+      </section>
+
+      <section data-help="animation" hidden>
+        <h3>Animation guide</h3>
+        <p>Animation turns your diagram into a moving drill. You attach players and pucks to the lines you drew, put the lines in order, and press play. <b>Playing never changes your drill.</b> It always goes back to how you drew it.</p>
+
+        <h4>Set it up</h4>
+        <ol>
+          <li>Draw your drill: players, puck, nets, and the skate / backward / pass / dump / shot lines.</li>
+          <li>Click <b>Animate</b> in the top bar. A numbered badge will appear on every line that is set up.</li>
+          <li>Click a line on the ice. The <b>Animation</b> panel opens on the right.</li>
+          <li><b>Pick who moves.</b> Click <b>Pick on the ice</b>, then click the piece:
+            <ul>
+              <li><b>Skate / Backward</b> lines move a <b>player or the coach</b> (you can add several).</li>
+              <li><b>Pass / Dump / Shot</b> lines move a <b>puck</b>. They can only be attached to a puck.</li>
+            </ul>
+          </li>
+          <li>Set the <b>Step</b> number (and a <b>Sub-step</b> if needed; see below). Lines that stay unattached just stay still.</li>
+          <li>Press <b>▶</b> on the play bar (or the space bar).</li>
+        </ol>
+
+        <h4>Steps and sub-steps</h4>
+        <ul>
+          <li><b>Steps are global.</b> Everything in the same step happens <b>at the same time</b>. Step 2 starts when the longest motion in step 1 has finished.</li>
+          <li><b>Sub-steps belong to one player or puck.</b> If one player has several motions in the same step, give them <b>a</b>, <b>b</b>, <b>c</b>. That player does a, then b, then c, each starting the moment the last one ends. Other players are not held up. Example: a player skates forward (<b>1a</b>) then backward (<b>1b</b>) while everyone else keeps going.</li>
+          <li>The badge shows <b>1a</b> / <b>1b</b> only where a player or puck has more than one motion in a step.</li>
+        </ul>
+
+        <h4>How the puck behaves</h4>
+        <ul>
+          <li><b>A puck is always held by a player or coach, loose, or in flight.</b> A held puck moves with its holder.</li>
+          <li>A puck starts out held by a player standing right next to it (about 6 ft). To force it, pick the puck under <b>Carrying a puck</b> on a skate line (optional).</li>
+          <li><b>Pass / Dump / Shot leave when the holder reaches the start of the line.</b> So start the line where the holder will be.</li>
+          <li><b>A pass</b> is timed to land <b>just before the player it is going to gets there</b>. That player (or coach) takes the puck and carries it from then on.</li>
+          <li><b>A dump</b> just goes into open space: nobody receives it. <b>A shot</b> ends where its line ends.</li>
+          <li>A loose puck stays where it landed until a player skates over it in a later step, who then picks it up.</li>
+          <li><b>These rules only work inside a step.</b> If nobody is there during that step, the pass, dump or shot still happens in its step; it never waits for something in a later step.</li>
+          <li>Each motion has a <b>Speed</b> slider (0.5× to 2×) if you want it slower or faster.</li>
+        </ul>
+
+        <h4>The play bar and Steps list</h4>
+        <ul>
+          <li><b>▶ / ⏸</b> play and pause (space bar). <b>■</b> stops and takes you back to editing; while previewing, editing is locked.</li>
+          <li>Drag the slider to scrub. The numbers on it mark where each step starts. Choose 0.5×, 1× or 2× speed.</li>
+          <li>The <b>Steps</b> panel (top of the right column) writes out what happens in each step. The current step is highlighted while it plays, and clicking a step jumps to it.</li>
+          <li><b>Export video</b> records the animation as an MP4 into your Exports folder (see <a data-goto="export">Exporting</a>).</li>
+        </ul>
+
+        <h4>Example: a quick rush</h4>
+        <ol>
+          <li>Put <b>F</b> with a puck right beside it, <b>C</b> near the slot, a <b>net</b>, and a <b>G</b>.</li>
+          <li>Draw a <b>Skate</b> line from F up the ice. In Animate mode select it, <b>Pick</b> F, Step <b>1</b>.</li>
+          <li>Draw a <b>Pass</b> from the end of F's skate to C. Select it, <b>Pick the puck</b>, Step <b>1</b>. It leaves when F gets to its start and arrives just before C.</li>
+          <li>Draw a <b>Shot</b> from C to the net. <b>Pick the puck</b>, Step <b>2</b>. It goes once C has the puck.</li>
+          <li>Press ▶. Check the Steps list to read it back.</li>
+        </ol>
+
+        <h4>If something looks wrong</h4>
+        <ul>
+          <li><b>Nothing moves:</b> the line has no player/puck attached (no badge). Select it and pick one. The Steps list warns about unattached lines.</li>
+          <li><b>A pass happens too early or from the wrong place:</b> a pass starts when its holder reaches its <b>start</b>, so draw the start where the holder will be, and end it where the receiver will be.</li>
+          <li><b>The puck slides oddly at a hand-off:</b> check that the pass or shot line starts near the player who should have the puck.</li>
+          <li><b>Something should wait for something else:</b> put it in the next step (or a later sub-step for the same player).</li>
+          <li><b>Can't edit:</b> you are previewing. Press ■.</li>
+        </ul>
+      </section>
+
+      <section data-help="save" hidden>
+        <h3>Saving &amp; folders</h3>
+        <ul>
+          <li><b>Automatic:</b> your work is always kept in this browser, for this web address. That is a convenience copy, not a backup.</li>
+          <li><b>Drills folder</b> (top bar): choose a folder once. Every drill is then saved there automatically as its own file (<code>name.drill.json</code>).</li>
+          <li><b>Exports folder</b> (top bar): choose where PDFs and videos go. If you skip it, they download normally.</li>
+          <li>After you restart Chrome the button says <b>Reconnect</b>: click it once to allow saving again. Chrome requires that.</li>
+          <li><b>Open…</b> adds drills from your Drills folder. <b>Import file…</b> (in that dialog) reads a drill file someone sent you. Share a drill by sending its <code>.drill.json</code>.</li>
+          <li><b>Safe by design:</b> the app never deletes or moves your files, and never overwrites a file that belongs to a different drill (it saves as <code>name (2)</code>). Renaming a drill leaves the old file behind, so tidy up in Finder. Removing a drill only removes it from the project.</li>
+          <li>Folder saving and MP4 video need <b>Chrome on a computer</b>. Other browsers download files instead.</li>
+        </ul>
+      </section>
+
+      <section data-help="export" hidden>
+        <h3>Exporting</h3>
+        <h4>PDF (US Letter)</h4>
+        <ul>
+          <li>Click <b>Export PDF…</b>. Choose <b>this drill</b> or <b>all drills</b>, and <b>1, 2 or 4 drills per page</b> (more pages are added automatically).</li>
+          <li>Drills on the same page share one scale, so pieces stay the same size.</li>
+          <li>Tick <b>names and notes</b> to print them under each drill, and the <b>step-by-step list</b> to print what happens in an animated drill.</li>
+        </ul>
+        <h4>Video (MP4)</h4>
+        <ul>
+          <li>Click <b>Export video</b> (top bar or play bar) on a drill that has an animation. It plays and records in real time, so a 10-second drill takes about 12 seconds.</li>
+          <li>The video shows the ice and the moving pieces. It is saved to your Exports folder as <code>name animation date.mp4</code>.</li>
+        </ul>
+      </section>
+
+      <section data-help="keys" hidden>
+        <h3>Shortcuts</h3>
+        <table>
+          <tr><td><kbd>V</kbd></td><td>Select</td><td><kbd>⌫</kbd></td><td>Delete selected</td></tr>
+          <tr><td><kbd>F</kbd></td><td>Skate line</td><td><kbd>R</kbd> / <kbd>⇧R</kbd></td><td>Rotate cone, stick, net</td></tr>
+          <tr><td><kbd>B</kbd></td><td>Backward line</td><td><kbd>⌘D</kbd></td><td>Duplicate</td></tr>
+          <tr><td><kbd>P</kbd></td><td>Pass</td><td><kbd>⌘Z</kbd> / <kbd>⇧⌘Z</kbd></td><td>Undo / redo</td></tr>
+          <tr><td><kbd>U</kbd></td><td>Dump</td><td><kbd>← ↑ ↓ →</kbd></td><td>Nudge (<kbd>⇧</kbd> = bigger)</td></tr>
+          <tr><td><kbd>S</kbd></td><td>Shot</td><td><kbd>⌘S</kbd></td><td>Save now</td></tr>
+          <tr><td><kbd>C</kbd></td><td>Straight / Curve</td><td><kbd>Esc</kbd></td><td>Back to Select / cancel picking</td></tr>
+          <tr><td><kbd>T</kbd></td><td>Text</td><td><kbd>Space</kbd></td><td>Play / pause (Animate mode)</td></tr>
+          <tr><td><kbd>D</kbd></td><td>Pen (freehand)</td><td><kbd>?</kbd></td><td>Open this Help</td></tr>
+        </table>
+      </section>
+
+    </div>
+  </div>
+</dialog>
 
 <dialog id="openDlg">
   <form method="dialog" id="openForm">
