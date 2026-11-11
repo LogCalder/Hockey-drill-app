@@ -25,6 +25,7 @@
       skate: mkLine('skate', [{ x: 6, y: 40 }, { x: 66, y: 10 }]),
       back: mkLine('back', [{ x: 6, y: 40 }, { x: 66, y: 10 }]),
       pass: mkLine('pass', [{ x: 6, y: 40 }, { x: 66, y: 10 }]),
+      dump: mkLine('dump', [{ x: 6, y: 40 }, { x: 66, y: 10 }]),
       shoot: mkLine('shoot', [{ x: 6, y: 40 }, { x: 66, y: 10 }]),
     };
     $$('#tools button').forEach((b) => {
@@ -100,6 +101,7 @@
     skate: 'Drag on the ice to draw a skating path.',
     back: 'Drag on the ice to draw a backward-skating path.',
     pass: 'Drag on the ice to draw a pass.',
+    dump: 'Drag on the ice to draw a dump: the puck just goes to open space.',
     shoot: 'Drag on the ice to draw a shot.',
     text: 'Click the ice and type. Double-click text to edit.',
     draw: 'Click and drag on the ice to draw freehand. Pick a color first.',
@@ -108,7 +110,7 @@
   function syncTool() {
     $$('#tools button').forEach((b) => b.classList.toggle('on', b.dataset.tool === E.tool));
     $$('#lineMode button').forEach((b) => b.classList.toggle('on', b.dataset.mode === E.lineMode));
-    const isLine = ['skate', 'back', 'pass', 'shoot'].includes(E.tool);
+    const isLine = ['skate', 'back', 'pass', 'dump', 'shoot'].includes(E.tool);
     $('#lineMode').classList.toggle('dim', !isLine);
     $('#toolHint').textContent = isLine && E.lineMode === 'curve'
       ? 'Drag to draw, then drag the white middle handle to bend the path.'
@@ -121,7 +123,7 @@
     $('#selPanel').hidden = !o;
     syncAnimPanel(o);
     if (!o) return;
-    $('#selTitle').textContent = o.type === 'line' ? { skate: 'Skating line', back: 'Backward skating', pass: 'Pass', shoot: 'Shot', free: 'Pen drawing' }[o.kind] : (o.type === 'player' ? (o.label === '\u00a9' ? 'Coach' : 'Player ' + o.label) : NAMES[o.type]);
+    $('#selTitle').textContent = o.type === 'line' ? { skate: 'Skating line', back: 'Backward skating', pass: 'Pass', dump: 'Dump', shoot: 'Shot', free: 'Pen drawing' }[o.kind] : (o.type === 'player' ? (o.label === '\u00a9' ? 'Coach' : 'Player ' + o.label) : NAMES[o.type]);
     const rot = o.type === 'cone' || o.type === 'stick' || o.type === 'net';
     $('#actRotL').hidden = $('#actRotR').hidden = !rot;
     if (o.type === 'line' && o.kind === 'free') { /* nothing extra */ }
@@ -143,7 +145,7 @@
   const COLOR_NAMES = { '#111111': 'black', '#e03131': 'red', '#1c6fe0': 'blue', '#2f9e44': 'green', '#f08c00': 'orange', '#7048e8': 'purple', '#ffffff': 'white' };
   const describe = (o) => (o.type === 'puck' ? 'Puck' : (o.label === '©' ? 'Coach' : 'Player ' + o.label) + ' (' + (COLOR_NAMES[o.color] || 'custom') + ')');
   const isMotion = (o) => o && o.type === 'line' && o.kind !== 'free';
-  const isShotLine = (o) => o.kind === 'pass' || o.kind === 'shoot';
+  const isShotLine = (o) => o.kind === 'pass' || o.kind === 'dump' || o.kind === 'shoot';
 
   function syncAnimPanel(o) {
     const show = E.animMode && isMotion(o);
@@ -151,15 +153,15 @@
     if (!show) return;
     const a = o.anim || { step: 1, actors: [], carry: null };
     const shot = isShotLine(o);
-    $('#animKind').textContent = { skate: 'skating', back: 'backward', pass: 'pass', shoot: 'shot' }[o.kind];
+    $('#animKind').textContent = { skate: 'skating', back: 'backward', pass: 'pass', dump: 'dump', shoot: 'shot' }[o.kind];
     $('#stepNum').textContent = a.step || 1;
     $('#actorLabel').textContent = shot ? 'Puck that travels' : 'Players that skate this';
     $('#btnPickActor').textContent = shot ? '+ Pick the puck' : '+ Pick a player / coach';
     $('#carryField').hidden = shot;
     $('#motionSpeed').value = a.speed || 1; $('#motionSpeedVal').textContent = (a.speed || 1).toFixed(1) + '×';
     $('#animHint').textContent = shot
-      ? 'Passes and shots only attach to a puck. It fires once its carrier (a skating motion in the same step carrying this puck) reaches the start of this line.'
-      : 'Add one or more players. If they carry a puck, pick it too so it moves with them.';
+      ? 'Passes, dumps and shots only attach to a puck. Within this step it goes once whoever has the puck reaches the start of this line. A pass is timed to arrive just before the player at the end gets there; a dump just goes to open space.'
+      : 'Add one or more players. Pucks they have move with them automatically; picking a puck below just forces it.';
     const fill = (el, ids, onRemove) => {
       el.innerHTML = '';
       ids.forEach((id) => {

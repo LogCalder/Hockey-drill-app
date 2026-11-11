@@ -132,6 +132,26 @@
       strokePoly(ctx, truncate(full, Math.max(1, L - head * 0.7)));
       ctx.setLineDash([]);
       arrowHead(ctx, end.x, end.y, tx, ty, head, 28);
+    } else if (o.kind === 'dump') {
+      const head = 34;
+      ctx.lineWidth = 4.5; ctx.setLineDash([2, 14]);
+      strokePoly(ctx, truncate(full, Math.max(1, L - head * 0.8)));
+      ctx.setLineDash([]);
+      const nx = -ty, ny = tx;                                   // hollow arrowhead
+      ctx.beginPath();
+      ctx.moveTo(end.x, end.y);
+      ctx.lineTo(end.x - tx * head + nx * 14, end.y - ty * head + ny * 14);
+      ctx.lineTo(end.x - tx * head - nx * 14, end.y - ty * head - ny * 14);
+      ctx.closePath();
+      ctx.fillStyle = '#ffffff'; ctx.fill(); ctx.lineWidth = 3.5; ctx.stroke();
+      if (L > 120) {                                             // double bar across the middle: the "dump" mark
+        const m = sampleAt(full, L / 2);
+        ctx.lineWidth = 4; ctx.lineCap = 'butt';
+        for (const off of [-5, 5]) {
+          const cx = m.x + m.tx * off, cy = m.y + m.ty * off;
+          ctx.beginPath(); ctx.moveTo(cx - m.ty * 14, cy + m.tx * 14); ctx.lineTo(cx + m.ty * 14, cy - m.tx * 14); ctx.stroke();
+        }
+      }
     } else if (o.kind === 'shoot') {
       const head = 44;
       const shaft = truncate(full, Math.max(1, L - head * 0.7));

@@ -5,3 +5,6 @@ Drills/*
 Exports/*
 !Drills/.gitkeep
 !Exports/.gitkeep
+
+# Reference images (not used by the app; third-party artwork)
+Images/

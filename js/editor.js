@@ -2,7 +2,7 @@
 (function (HD) {
   'use strict';
   const S = HD.store, R = HD.R;
-  const LINE_TOOLS = ['skate', 'back', 'pass', 'shoot'];
+  const LINE_TOOLS = ['skate', 'back', 'pass', 'dump', 'shoot'];
 
   const E = {
     tool: 'select',
@@ -413,7 +413,7 @@
       moveObj(o, k === 'arrowleft' ? -step : k === 'arrowright' ? step : 0, k === 'arrowup' ? -step : k === 'arrowdown' ? step : 0);
       S.emit('objects'); return;
     }
-    const map = { v: 'select', f: 'skate', b: 'back', p: 'pass', s: 'shoot', t: 'text', d: 'draw' };
+    const map = { v: 'select', f: 'skate', b: 'back', p: 'pass', u: 'dump', s: 'shoot', t: 'text', d: 'draw' };
     if (map[k]) E.setTool(map[k]);
     if (k === 'c') { E.lineMode = E.lineMode === 'curve' ? 'straight' : 'curve'; E.onTool(E.tool); }
   }

@@ -9,10 +9,15 @@ No build step, no server: open `index.html` in Chrome, or serve the folder with 
 - **Tools** (left): Skate `F`, Backward `B`, Pass `P`, Shot `S`, Text `T`, Select `V`. `Straight`/`Curve` (`C`) picks the line type.
   Curve lines have a white middle handle - drag it to bend the path. Drag any handle of a selected line to adjust it.
 - `⌫` delete, `R` rotate cone/stick, `⌘D` duplicate, `⌘Z` / `⇧⌘Z` undo/redo, arrows nudge, `⌘S` save.
+- **Dump** (`U`): drawn like a pass (dotted) but with a hollow arrowhead and a double bar. It just sends the puck into open space; nobody receives it.
+  A normal **Pass** is timed to land just before the player at its end gets there.
 - **Pen** (`D`): draw freehand on the ice. **Coach**: the © piece in Equipment (it can skate like a player).
 - **Animate** (top bar): select a motion line, set its **Step**, and click **Pick on the ice** to attach pieces.
-  Skating/backward lines move players or the coach (and a puck they carry); passes and shots attach to a puck only and
-  fire when the puck's carrier reaches the start of the pass/shot. Same step = same time; steps play in order.
+  Skating/backward lines move players or the coach; passes and shots attach to a puck only. The puck follows a possession rule:
+  it moves with whoever holds it, a pass/shot fires when its holder reaches the start of that line, and the player/coach at (or
+  skating through) the end of a pass receives it and carries it on. These rules only apply *within a step*: if the holder or
+  receiver doesn't get there during that step, the pass/shot still happens in its step and the puck stays loose until a later
+  step picks it up. Same step = same time; steps play in order.
   The **Steps** panel (top of the right column) lists every step in plain words and highlights the current one while playing; click a step to jump to it.
   Each motion has its own **Speed** slider. Use the play bar to play, scrub and change speed. Previews never change your drill. **Export video** (top bar or play bar) records the animation as an MP4 (WebM if the browser can't do MP4) into the Exports folder;
   it records in real time, so a 10 s drill takes about 12 s. The PDF export can include the step list as text.
