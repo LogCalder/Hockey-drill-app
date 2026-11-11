@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hockey Drill Designer</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%232f7bff'/%3E%3Ccircle cx='16' cy='16' r='5' fill='%23fff'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand"><span class="puck"></span>Hockey Drill Designer</div>
+    <div class="group">
+      <button id="btnUndo" title="Undo (⌘Z)" class="icon">↶</button>
+      <button id="btnRedo" title="Redo (⇧⌘Z)" class="icon">↷</button>
+    </div>
+    <div class="spacer"></div>
+    <div class="group">
+      <button id="btnAnimate" class="toggle" title="Attach players and pucks to motions, then play the drill"><span class="tri">▶</span> Animate</button>
+      <button id="btnFolder" class="folder"><i class="dot"></i><span>Drills folder</span></button>
+      <button id="btnExpFolder" class="folder"><i class="dot"></i><span>Exports folder</span></button>
+      <button id="btnOpen" title="Open saved drills">Open…</button>
+      <button id="btnSave" title="Save now (⌘S)">Save</button>
+      <button id="btnExportVideo" title="Record the animation as a video (MP4) in your Exports folder">Export video</button>
+      <button id="btnExport" class="primary" title="Export as Letter-size PDF">Export PDF…</button>
+    </div>
+    <input type="file" id="fileInput" accept=".json,application/json" multiple hidden>
+  </header>
+
+  <aside class="palette" id="palette">
+    <section>
+      <h3>Tools</h3>
+      <div class="tools" id="tools">
+        <button data-tool="select" title="Select / move (V)"><canvas></canvas><span>Select</span></button>
+        <button data-tool="skate"  title="Forward skating (F)"><canvas></canvas><span>Skate</span></button>
+        <button data-tool="back"   title="Backward skating (B)"><canvas></canvas><span>Backward</span></button>
+        <button data-tool="pass"   title="Pass (P)"><canvas></canvas><span>Pass</span></button>
+        <button data-tool="shoot"  title="Shot (S)"><canvas></canvas><span>Shot</span></button>
+        <button data-tool="text"   title="Text (T)"><canvas></canvas><span>Text</span></button>
+        <button data-tool="draw"   title="Pen: draw freehand (D)"><canvas></canvas><span>Pen</span></button>
+      </div>
+      <div class="segmented" id="lineMode" title="Line shape (C)">
+        <button data-mode="straight" class="on">Straight</button>
+        <button data-mode="curve">Curve</button>
+      </div>
+      <p class="hint" id="toolHint">Drag on the ice to draw. Drag the handles to adjust.</p>
+    </section>
+
+    <section>
+      <h3>Players <small>drag onto ice</small></h3>
+      <div class="chips" id="players"></div>
+    </section>
+
+    <section>
+      <h3>Equipment <small>drag onto ice</small></h3>
+      <div class="pieces" id="pieces"></div>
+    </section>
+  </aside>
+
+  <main class="stage" id="stage">
+    <canvas id="board"></canvas>
+    <input id="textEdit" type="text" spellcheck="false" autocomplete="off">
+    <div class="zoom">
+      <button id="zoomOut" title="Zoom out">−</button>
+      <span id="zoomLabel">100%</span>
+      <button id="zoomIn" title="Zoom in">+</button>
+    </div>
+  </main>
+
+  <aside class="inspector">
+    <section id="stepsPanel" hidden>
+      <h3>Steps <small id="stepsInfo"></small></h3>
+      <div id="stepList"></div>
+    </section>
+
+    <section>
+      <h3>Drill</h3>
+      <label class="field">Name <input id="drillName" type="text" placeholder="Drill name"></label>
+      <div class="field">Ice
+        <div class="segmented" id="rinkType">
+          <button data-rink="half">Half ice</button>
+          <button data-rink="full">Full ice</button>
+        </div>
+      </div>
+      <label class="field">Notes <textarea id="drillNotes" rows="4" placeholder="Coaching points, setup, reps…"></textarea></label>
+    </section>
+
+    <section>
+      <h3>Color</h3>
+      <div class="swatches" id="swatches"></div>
+      <p class="hint">Sets the color of new items and the selected item.</p>
+    </section>
+
+    <section id="selPanel" hidden>
+      <h3 id="selTitle">Selected</h3>
+      <div class="actions">
+        <button id="actDup" title="Duplicate (⌘D)">Duplicate</button>
+        <button id="actDel" title="Delete (⌫)" class="danger">Delete</button>
+        <button id="actFront" title="Bring to front">To front</button>
+        <button id="actBack" title="Send to back">To back</button>
+        <button id="actRotL" title="Rotate left (⇧R)">⟲ 15°</button>
+        <button id="actRotR" title="Rotate right (R)">⟳ 15°</button>
+      </div>
+      <label class="field" id="sizeField">Text size
+        <input type="range" id="textSize" min="20" max="90" step="2">
+      </label>
+    </section>
+
+    <section id="animPanel" hidden>
+      <h3>Animation <small id="animKind"></small></h3>
+      <div class="field">Step
+        <div class="stepper"><button id="stepDown" class="icon">−</button><b id="stepNum">1</b><button id="stepUp" class="icon">+</button></div>
+        <p class="hint">Motions in the same step happen at the same time; steps play in order.</p>
+      </div>
+      <div class="field"><span id="actorLabel">Who moves</span>
+        <div id="actorChips" class="chiplist"></div>
+        <button id="btnPickActor" class="wide">+ Pick on the ice</button>
+      </div>
+      <div class="field" id="carryField">Carrying a puck
+        <div id="carryChips" class="chiplist"></div>
+        <button id="btnPickCarry" class="wide">+ Pick the puck</button>
+      </div>
+      <label class="field" id="speedField">Speed <b id="motionSpeedVal">1×</b>
+        <input type="range" id="motionSpeed" min="0.5" max="2" step="0.1" value="1">
+      </label>
+      <p class="hint" id="animHint"></p>
+    </section>
+
+    <section>
+      <button id="btnClear" class="danger wide">Clear this drill</button>
+    </section>
+  </aside>
+
+  <footer class="strip">
+    <div class="drills" id="drillStrip"></div>
+    <div class="group">
+      <button id="btnAddHalf" title="Add a half-ice drill">+ Half ice</button>
+      <button id="btnAddFull" title="Add a full-ice drill">+ Full ice</button>
+      <button id="btnDupDrill" title="Duplicate this drill">Duplicate</button>
+      <button id="btnMoveL" title="Move drill earlier" class="icon">◀</button>
+      <button id="btnMoveR" title="Move drill later" class="icon">▶</button>
+      <button id="btnDelDrill" class="danger" title="Delete this drill">Delete</button>
+    </div>
+  </footer>
+</div>
+
+<dialog id="openDlg">
+  <form method="dialog" id="openForm">
+    <h2>Open drills</h2>
+    <p class="sub" id="openSub">Drills saved in your Drills folder.</p>
+    <div id="openList" class="openlist"></div>
+    <div class="dlg-actions">
+      <button type="button" id="openImport" class="ghost">Import file…</button>
+      <button value="cancel" class="ghost">Cancel</button>
+      <button type="button" id="openGo" class="primary">Add to project</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="playwrap" id="playwrap" hidden>
+  <div class="playbar" id="playbar">
+    <button id="pbPlay" class="icon" title="Play / pause (space)">▶</button>
+    <button id="pbStop" class="icon" title="Stop and go back to editing">■</button>
+    <div class="scrub"><div class="marks" id="pbMarks"></div><input type="range" id="pbScrub" min="0" max="1000" value="0"></div>
+    <span id="pbTime">0.0s</span>
+    <button id="pbExport" title="Record this animation as a video in your Exports folder">Export video</button>
+    <select id="pbSpeed" title="Playback speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select>
+  </div>
+  <div class="pbhint" id="pbHint"></div>
+</div>
+
+<div id="recBanner" hidden></div>
+<div id="pickBanner" hidden>Click a piece on the ice to attach it · <u>Esc</u> to cancel</div>
+<div id="toast" role="status"></div>
+
+<dialog id="exportDlg">
+  <form method="dialog" id="exportForm">
+    <h2>Export PDF</h2>
+    <p class="sub">US Letter, portrait. Drills on the same page share one scale so pieces stay the same size.</p>
+
+    <fieldset>
+      <legend>Which drills</legend>
+      <label><input type="radio" name="scope" value="current"> This drill only</label>
+      <label><input type="radio" name="scope" value="all" checked> All drills (<span id="expCount">1</span>) — extra pages are added automatically</label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Layout</legend>
+      <div class="layouts">
+        <label class="layout"><input type="radio" name="perPage" value="1" checked>
+          <i class="pg"><b></b></i><span>1 per page</span></label>
+        <label class="layout"><input type="radio" name="perPage" value="2">
+          <i class="pg two"><b></b><b></b></i><span>2 per page</span></label>
+        <label class="layout"><input type="radio" name="perPage" value="4">
+          <i class="pg four"><b></b><b></b><b></b><b></b></i><span>4 per page</span></label>
+      </div>
+    </fieldset>
+
+    <label class="check"><input type="checkbox" id="expTitles" checked> Include drill names and notes</label>
+    <label class="check"><input type="checkbox" id="expSteps" checked> Include the step-by-step list for animated drills</label>
+
+    <div class="dlg-actions">
+      <button value="cancel" class="ghost">Cancel</button>
+      <button id="expGo" value="go" class="primary">Download PDF</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="js/lib/jspdf.umd.min.js"></script>
+<script src="js/rink.js"></script>
+<script src="js/render.js"></script>
+<script src="js/store.js"></script>
+<script src="js/fs.js"></script>
+<script src="js/anim.js"></script>
+<script src="js/editor.js"></script>
+<script src="js/export.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+.DS_Store
+
+# Saved work stays local; the folders themselves are kept
+Drills/*
+Exports/*
+!Drills/.gitkeep
+!Exports/.gitkeep
