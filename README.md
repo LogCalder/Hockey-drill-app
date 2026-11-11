@@ -18,6 +18,8 @@ No build step, no server: open `index.html` in Chrome, or serve the folder with 
   skating through) the end of a pass receives it and carries it on. These rules only apply *within a step*: if the holder or
   receiver doesn't get there during that step, the pass/shot still happens in its step and the puck stays loose until a later
   step picks it up. Same step = same time; steps play in order.
+  **Sub-steps** (a, b, c… in the Animation panel) belong to one player or puck: inside a step, that player's motions run a, then b,
+  then c, each starting when the previous one ends (e.g. skate forward = a, backward = b), without affecting anyone else's motions.
   The **Steps** panel (top of the right column) lists every step in plain words and highlights the current one while playing; click a step to jump to it.
   Each motion has its own **Speed** slider. Use the play bar to play, scrub and change speed. Previews never change your drill. **Export video** (top bar or play bar) records the animation as an MP4 (WebM if the browser can't do MP4) into the Exports folder;
   it records in real time, so a 10 s drill takes about 12 s. The PDF export can include the step list as text.

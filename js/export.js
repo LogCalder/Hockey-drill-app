@@ -48,7 +48,7 @@
         if (opts.titles && d.notes && d.notes.trim()) notes = doc.splitTextToSize(d.notes.trim(), cw);
         if (opts.steps && HD.anim.hasMotions(d)) {               // the animation written out as numbered steps
           for (const st of HD.anim.describe(d).steps) {
-            notes = notes.concat(doc.splitTextToSize('Step ' + st.step + ': ' + st.lines.join('; ') + '.', cw));
+            notes = notes.concat(doc.splitTextToSize('Step ' + st.label + ': ' + st.lines.join('; ') + '.', cw));
           }
         }
         notes = notes.slice(0, perPage === 1 ? 26 : perPage === 2 ? 12 : 8);

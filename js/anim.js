@@ -1,6 +1,9 @@
 /* Drill animation.
  *
  * Data (stored on each motion line):  line.anim = { step: 1, actors: [objectId...], carry: puckId | null, speed: 1 }
+ *   - sub: 1, 2, 3 = a, b, c. A step is global (everything in it starts together), but sub-steps are per player/puck:
+ *     one player's (or puck's) motions in a step run a, then b, then c, each starting when the previous one ends,
+ *     without affecting what any other player or puck is doing.
  *   - skate / back lines: actors are players (or the coach); they follow the path.
  *     `carry` (optional) says "this puck moves with them" - otherwise possession is worked out automatically.
  *   - pass / shoot lines: actors are pucks; they travel along the line.
@@ -63,7 +66,7 @@
       rel.set(p, best ? relOf(rest.get(p).x - rest.get(best).x, rest.get(p).y - rest.get(best).y) : REL);
     }
 
-    const groups = new Map();
+    const groups = new Map();                                // key = step (global)
     for (const l of usable(drill)) {
       const k = l.anim.step || 1;
       if (!groups.has(k)) groups.set(k, []);
@@ -72,31 +75,44 @@
 
     const steps = [];
     let clock = 0;
-    for (const k of [...groups.keys()].sort((a, b) => a - b)) {
-      const lines = groups.get(k);
+    for (const stepNo of [...groups.keys()].sort((a, b) => a - b)) {
+      const lines = groups.get(stepNo);
       const startPos = new Map(rest);                        // snapshot: where everything is when this step begins
 
       // ---- skating motions ----
       const movers = lines.filter((l) => !isShot(l)).map((l) => {
         const poly = R.flatten(l), len = R.polyLength(poly), speed = SPEED[l.kind] * clamp(l.anim.speed || 1, 0.25, 4);
         const actors = l.anim.actors.filter((id) => ids.has(id) && players.includes(id));
-        return { line: l, poly, len, speed, dur: Math.max(0.3, len / speed), actors, carry: l.anim.carry && ids.has(l.anim.carry) ? l.anim.carry : null, carried: false };
+        return { line: l, sub: l.anim.sub || 1, poly, len, speed, dur: Math.max(0.3, len / speed), actors, carry: l.anim.carry && ids.has(l.anim.carry) ? l.anim.carry : null, carried: false };
       }).filter((m) => m.actors.length);
-      const moverOf = new Map();
+      // Each player/coach runs its own chain a -> b -> c: a motion starts when that player's previous motion ends
+      // (all chains start together at the beginning of the step, independent of each other).
+      movers.sort((a, b) => a.sub - b.sub);
+      const segsOf = new Map();                              // player id -> its motions, in order
+      const cur = new Map(startPos), free = new Map();       // where each player is / when it is free for its next motion
       for (const m of movers) {
-        m.lead = startPos.get(m.actors[0]);
-        m.offs = m.actors.map((id) => ({ dx: startPos.get(id).x - m.lead.x, dy: startPos.get(id).y - m.lead.y }));
-        for (const id of m.actors) if (!moverOf.has(id)) moverOf.set(id, m);
+        m.start = Math.max(0, ...m.actors.map((id) => free.get(id) || 0));
+        m.lead = { ...cur.get(m.actors[0]) };
+        m.offs = m.actors.map((id) => ({ dx: cur.get(id).x - m.lead.x, dy: cur.get(id).y - m.lead.y }));
+        const e = m.poly[m.poly.length - 1];
+        m.actors.forEach((id, i) => {
+          cur.set(id, { x: e.x + m.offs[i].dx, y: e.y + m.offs[i].dy });
+          free.set(id, m.start + m.dur);
+          if (!segsOf.has(id)) segsOf.set(id, []);
+          segsOf.get(id).push(m);
+        });
       }
       // where a player/coach is at time t of this step (eases onto the start of its line first)
       const P = (id, t) => {
-        const m = moverOf.get(id);
+        const list = segsOf.get(id);
+        let m = null;
+        if (list) for (const x of list) if (x.start <= t) m = x;
         if (!m) return startPos.get(id);
-        const u = clamp(t, 0, m.dur), q = R.sampleAt(m.poly, Math.min(m.len, (u / m.dur) * m.len));
+        const u = clamp(t - m.start, 0, m.dur), q = R.sampleAt(m.poly, Math.min(m.len, (u / m.dur) * m.len));
         const w = 1 - Math.min(1, u / BLEND), i = m.actors.indexOf(id);
         return { x: q.x + (m.lead.x - m.poly[0].x) * w + m.offs[i].dx, y: q.y + (m.lead.y - m.poly[0].y) * w + m.offs[i].dy };
       };
-      const Hm = Math.max(0, ...movers.map((m) => m.dur));
+      const Hm = Math.max(0, ...movers.map((m) => m.start + m.dur));
 
       // closest approach / first arrival of a player to a point, from time t0 on
       const approach = (id, pt, t0) => {
@@ -146,7 +162,7 @@
       // ---- passes / shots, puck by puck ----
       const shotItems = lines.filter(isShot).map((l) => {
         const poly = R.flatten(l), len = R.polyLength(poly), speed = SPEED[l.kind] * clamp(l.anim.speed || 1, 0.25, 4);
-        return { line: l, poly, len, speed, dur: Math.max(0.3, len / speed), t0: 0, puck: l.anim.actors.find((id) => pucks.includes(id)), holder: null, receiver: null, warn: null };
+        return { line: l, sub: l.anim.sub || 1, poly, len, speed, dur: Math.max(0.3, len / speed), t0: 0, puck: l.anim.actors.find((id) => pucks.includes(id)), holder: null, receiver: null, warn: null };
       }).filter((s) => s.puck);
       let stepEnd = Hm;
       const segs = new Map();
@@ -165,7 +181,8 @@
         while (todo.length) {
           // when could each remaining pass/shot fire? (its holder reaching its start, or nearby if nobody holds it)
           let best = null;
-          for (const s of todo) {
+          const minSub = Math.min(...todo.map((x) => x.sub));         // this puck's own chain: a before b before c
+          for (const s of todo.filter((x) => x.sub === minSub)) {
             let f, warn = null;
             if (own) {
               const a = approach(own, s.poly[0], tc);
@@ -222,7 +239,7 @@
       for (const m of movers) for (const id of m.actors) rest.set(id, { ...P(id, stepEnd) });
       for (const p of pucks) rest.set(p, { ...puckAt(p, stepEnd) });
 
-      steps.push({ step: k, start: clock, dur: stepEnd, startPos, movers, shots: shotItems.slice().sort((a, b) => a.t0 - b.t0), P, puckAt, pucks });
+      steps.push({ step: stepNo, label: String(stepNo), start: clock, dur: stepEnd, startPos, movers, shots: shotItems.slice().sort((a, b) => a.t0 - b.t0), P, puckAt, pucks });
       clock += stepEnd + GAP;
     }
     return { steps, total: Math.max(0.01, clock - GAP) };
@@ -254,18 +271,19 @@
     };
     const steps = tl.steps.map((st) => {
       const lines = [];
+      const chain = (m, list, key) => (list.some((o) => o !== m && key(o).some((a) => key(m).includes(a))) ? String.fromCharCode(96 + Math.min(26, m.sub || 1)) + ': ' : '');
       for (const m of st.movers) {
         const who = m.actors.map(nameOf).join(' & '), one = m.actors.length === 1;
-        lines.push(who + ' ' + (m.line.kind === 'back' ? 'skate' + (one ? 's' : '') + ' backwards' : 'skate' + (one ? 's' : '')) + (m.carried ? ' with the puck' : ''));
+        lines.push(chain(m, st.movers, (o) => o.actors) + who + ' ' + (m.line.kind === 'back' ? 'skate' + (one ? 's' : '') + ' backwards' : 'skate' + (one ? 's' : '')) + (m.carried ? ' with the puck' : ''));
       }
       for (const s of st.shots) {
-        const end = s.poly[s.poly.length - 1];
+        const end = s.poly[s.poly.length - 1], pre = chain(s, st.shots, (o) => [o.puck]);
         const when = s.holder && !s.warn ? ' once ' + nameOf(s.holder) + ' has the puck at the start' : '';
-        if (s.line.kind === 'pass') lines.push('Pass to ' + (s.receiver ? nameOf(s.receiver) : 'open ice') + when);
-        else if (s.line.kind === 'dump') lines.push('Dump into open space' + when);
-        else lines.push((near(end, ['net'], 90) ? 'Shot on net' : 'Shot') + when);
+        if (s.line.kind === 'pass') lines.push(pre + 'Pass to ' + (s.receiver ? nameOf(s.receiver) : 'open ice') + when);
+        else if (s.line.kind === 'dump') lines.push(pre + 'Dump into open space' + when);
+        else lines.push(pre + (near(end, ['net'], 90) ? 'Shot on net' : 'Shot') + when);
       }
-      return { step: st.step, start: st.start, dur: st.dur, lines };
+      return { step: st.step, label: st.label, start: st.start, dur: st.dur, lines };
     });
     return { steps, total: tl.total, unattached: A.unattached(drill) };
   };

@@ -369,14 +369,20 @@
   // Animation overlays: numbered step badges on motions, plus links from the selected motion to its pieces.
   function drawAnimOverlay(ctx, drill, selectedId, zoom) {
     const px = 1 / zoom, byId = new Map(drill.objects.map((o) => [o.id, o]));
+    const used = new Map();                                   // "step|piece" -> how many motions use that piece in that step
+    for (const o of drill.objects) if (o.type === 'line' && o.kind !== 'free' && o.anim && o.anim.actors && o.anim.actors.length) {
+      for (const id of o.anim.actors) { const k = (o.anim.step || 1) + '|' + id; used.set(k, (used.get(k) || 0) + 1); }
+    }
     ctx.save();
     for (const o of drill.objects) {
       if (o.type !== 'line' || o.kind === 'free' || !o.anim || !o.anim.actors || !o.anim.actors.length) continue;
       const p = o.pts[0];
-      ctx.beginPath(); ctx.arc(p.x, p.y, 15, 0, Math.PI * 2);
+      ctx.beginPath(); ctx.arc(p.x, p.y, 16, 0, Math.PI * 2);
       ctx.fillStyle = ACCENT; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.stroke();
-      ctx.fillStyle = '#fff'; ctx.font = `700 17px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(String(o.anim.step || 1), p.x, p.y + 1);
+      const step = o.anim.step || 1;       // 1a / 1b only when one player or puck has several motions in that step
+      const label = step + (o.anim.actors.some((id) => used.get(step + '|' + id) > 1) ? String.fromCharCode(96 + Math.min(26, o.anim.sub || 1)) : '');
+      ctx.fillStyle = '#fff'; ctx.font = `700 ${label.length > 2 ? 12 : label.length > 1 ? 14 : 17}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(label, p.x, p.y + 1);
     }
     const sel = byId.get(selectedId);
     if (sel && sel.type === 'line' && sel.anim) {

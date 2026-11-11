@@ -152,6 +152,7 @@
     $('#animPanel').hidden = !show;
     if (!show) return;
     const a = o.anim || { step: 1, actors: [], carry: null };
+    $('#subNum').textContent = String.fromCharCode(96 + Math.min(26, a.sub || 1));
     const shot = isShotLine(o);
     $('#animKind').textContent = { skate: 'skating', back: 'backward', pass: 'pass', dump: 'dump', shoot: 'shot' }[o.kind];
     $('#stepNum').textContent = a.step || 1;
@@ -211,7 +212,7 @@
     info.steps.forEach((st, i) => {
       const card = document.createElement('div'); card.className = 'stepcard'; card.dataset.idx = i;
       card.innerHTML = '<header><span class="num"></span>Step<small></small></header><ul></ul>';
-      $('.num', card).textContent = st.step; $('small', card).textContent = st.dur.toFixed(1) + 's';
+      $('.num', card).textContent = st.label; $('small', card).textContent = st.dur.toFixed(1) + 's';
       st.lines.forEach((t) => { const li = document.createElement('li'); li.textContent = t; $('ul', card).appendChild(li); });
       card.title = 'Click to jump to this step';
       card.onclick = () => { if (!An.tl && !startPreview(false)) return; An.playing = false; An.seek(An.tl.steps[i].start); };
@@ -247,7 +248,7 @@
     const m = $('#pbMarks'); m.innerHTML = '';
     if (!An.tl) return;
     An.tl.steps.forEach((st) => {
-      const i = document.createElement('i'); i.textContent = st.step; i.style.left = (st.start / An.tl.total) * 100 + '%'; m.appendChild(i);
+      const i = document.createElement('i'); i.textContent = st.label; i.style.left = (st.start / An.tl.total) * 100 + '%'; m.appendChild(i);
     });
   }
 
@@ -345,6 +346,8 @@
     $('#btnPickActor').onclick = () => pickFor('actor');
     $('#btnPickCarry').onclick = () => pickFor('carry');
     $('#stepUp').onclick = () => { const l = E.getSelected(); editAnim(l, (a) => { a.step = (a.step || 1) + 1; }); };
+    $('#subUp').onclick = () => { const l = E.getSelected(); editAnim(l, (a) => { a.sub = Math.min(26, (a.sub || 1) + 1); }); };
+    $('#subDown').onclick = () => { const l = E.getSelected(); editAnim(l, (a) => { a.sub = Math.max(1, (a.sub || 1) - 1); }); };
     $('#stepDown').onclick = () => { const l = E.getSelected(); editAnim(l, (a) => { a.step = Math.max(1, (a.step || 1) - 1); }); };
     E.onPick = (on) => { $('#pickBanner').hidden = !on; };
 
